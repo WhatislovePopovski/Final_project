@@ -1,0 +1,16 @@
+{
+  "testUsers": {
+    "existingUser": {
+      "email": "existing@example.com",
+      "password": "Existing123!",
+      "name": "Existing User",
+      "phone": "+79001234567"
+    },
+    "defaultUser": {
+      "email": "test@example.com",
+      "password": "Test123456!",
+      "name": "Test User",
+      "phone": "+79007654321"
+    }
+  }
+}
