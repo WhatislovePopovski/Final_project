@@ -7,8 +7,12 @@ import static com.codeborne.selenide.Condition.*;
 
 public class MainPage extends BasePage {
     private final ElementsCollection adCards = $$x("//h2[@class='h2']");
-    // Кнопка пагинации "вправо" - точный XPath
-    private final SelenideElement nextPageButton = $x("/html/body/div/div/div[2]/div[3]/button[2]");
+    // Поле поиска
+    private final SelenideElement searchInput = $x("/html/body/div/div/div[2]/form/div[1]/div/div/input");
+    // Поле выбора категории для поиска
+    private final SelenideElement searchCategoryInput = $x("/html/body/div/div/div[2]/form/div[2]/div[1]/div[1]/input");
+    // Кнопка "Применить"
+    private final SelenideElement applyButton = $x("//*[@id='root']/div/div[2]/form/div[2]/button");
     // Модальное окно
     private final SelenideElement modalOverlay = $("div.homePage_modal__zSdUB");
     private final SelenideElement modalCloseButton = $x("//div[contains(@class,'modal')]//button | //div[contains(@class,'modal')]//*[contains(@class,'close')]");
@@ -34,29 +38,64 @@ public class MainPage extends BasePage {
     }
 
     /**
-     * Перейти на последнюю страницу с объявлениями
+     * Поиск объявления по названию с учетом категории
      */
-    public MainPage goToLastPage() {
+    public MainPage searchAd(String title, String category) {
         closeModalIfPresent();
-        int attempts = 0;
-        // Проверяем что кнопка существует И не disabled
-        while (nextPageButton.exists() && !nextPageButton.has(attribute("disabled")) && attempts < 20) {
-            nextPageButton.scrollIntoView(true);
-            nextPageButton.click();
+        System.out.println("Searching for: " + title + " in category: " + category);
+
+        // Выбираем категорию
+        if (category != null && !category.isEmpty()) {
+            // Кликаем по полю категории для открытия дропдауна
+            SelenideElement categoryArrow = searchCategoryInput.parent().$("svg");
+            if (categoryArrow.exists()) {
+                categoryArrow.click();
+            } else {
+                searchCategoryInput.click();
+            }
             sleep(500);
-            attempts++;
+
+            // Выбираем нужную категорию из списка
+            SelenideElement option = $x("//span[contains(@class,'dropDownMenu_textColor') and contains(text(),'" + category + "')]");
+            if (option.exists()) {
+                option.parent().click();
+                sleep(300);
+            }
         }
-        System.out.println("Went to last page after " + attempts + " clicks");
+
+        // Вводим название в поле поиска
+        searchInput.shouldBe(visible).clear();
+        searchInput.setValue(title);
+        sleep(300);
+
+        // Нажимаем кнопку "Применить"
+        applyButton.shouldBe(visible).click();
+        sleep(1500); // Ждем результаты поиска
+
         return this;
     }
 
+    /**
+     * Поиск по названию (без категории)
+     */
+    public MainPage searchAd(String title) {
+        return searchAd(title, null);
+    }
+
+    /**
+     * Найти объявление по заголовку и кликнуть по нему
+     */
     public void clickOnAdByTitle(String title) {
         closeModalIfPresent();
         // Ищем точный заголовок в карточке
         SelenideElement ad = $x("//div[@class='about']/h2[@class='h2' and contains(text(),'" + title + "')]");
         if (!ad.exists()) {
-            // Запасной вариант - ищем просто h2
-            ad = $x("//h2[@class='h2' and contains(text(),'" + title + "')]");
+            // Пробуем искать по части заголовка
+            String shortTitle = title.length() > 10 ? title.substring(0, 10) : title;
+            ad = $x("//h2[@class='h2' and contains(text(),'" + shortTitle + "')]");
+        }
+        if (!ad.exists()) {
+            ad = $x("//*[contains(text(),'" + title.substring(0, Math.min(15, title.length())) + "')]");
         }
         ad.shouldBe(visible).click();
     }
@@ -64,18 +103,14 @@ public class MainPage extends BasePage {
     public boolean isAdPresent(String title) {
         SelenideElement ad = $x("//div[@class='about']/h2[@class='h2' and contains(text(),'" + title + "')]");
         if (ad.exists()) return true;
-        // Запасной вариант
         return $x("//h2[@class='h2' and contains(text(),'" + title + "')]").exists();
     }
 
     public SelenideElement getAdByTitle(String title) {
-        // Ищем заголовок в div.about и возвращаем всю карточку
         SelenideElement titleElement = $x("//div[@class='about']/h2[@class='h2' and contains(text(),'" + title + "')]");
         if (titleElement.exists()) {
-            // Возвращаем карточку (3 уровня вверх: about -> description -> card)
             return titleElement.parent().parent().parent();
         }
-        // Запасной вариант
         return $x("//h2[@class='h2' and contains(text(),'" + title + "')]");
     }
 

@@ -63,13 +63,12 @@ public class AdSteps {
     @Когда("пользователь заполняет все обязательные поля объявления")
     public void fillAllRequiredFields() {
         currentAd = TestDataGenerator.generateRandomAd();
-        // Форматируем цену как целое число
-        String price = String.valueOf((int) currentAd.getPrice());
+        int price = (int) currentAd.getPrice();
 
         createAdPage
                 .fillTitle(currentAd.getTitle())
                 .fillDescription(currentAd.getDescription())
-                .fillPrice(price)  // Отправляем целое число
+                .fillPrice(String.valueOf(price))
                 .selectCategory(currentAd.getCategory())
                 .selectCity("Москва")
                 .selectCondition("Б/У");
@@ -94,27 +93,29 @@ public class AdSteps {
             sleep(2000);
         }
 
-        // Идем на последнюю страницу
-        mainPage.goToLastPage();
+        // Ищем объявление через поиск с указанием категории
+        System.out.println("Searching for ad: " + currentAd.getTitle() + " in category: " + currentAd.getCategory());
+        mainPage.searchAd(currentAd.getTitle(), currentAd.getCategory());
 
-        // Ищем объявление
-        System.out.println("Looking for ad: " + currentAd.getTitle());
+        // Проверяем что объявление найдено
         assertTrue(mainPage.isAdPresent(currentAd.getTitle()),
-                "Объявление с заголовком '" + currentAd.getTitle() + "' не найдено на последней странице");
+                "Объявление с заголовком '" + currentAd.getTitle() + "' не найдено через поиск");
     }
 
     @Допустим("у пользователя есть созданное объявление")
     public void createAdForTest() {
         // Создаем объявление через UI
         currentAd = TestDataGenerator.generateRandomAd();
+        int price = (int) currentAd.getPrice();
 
         // Переходим к созданию
         mainPage.clickCreateAd();
         createAdPage
                 .fillTitle(currentAd.getTitle())
                 .fillDescription(currentAd.getDescription())
-                .fillPrice(String.valueOf(currentAd.getPrice()))
+                .fillPrice(String.valueOf(price))
                 .selectCategory(currentAd.getCategory())
+                .selectCity("Москва")
                 .selectCondition("Б/У")
                 .clickSubmit();
 
@@ -125,11 +126,11 @@ public class AdSteps {
 
     @Когда("пользователь открывает свое объявление для редактирования")
     public void openAdForEditing() {
-        // Идем на последнюю страницу
-        mainPage.goToLastPage();
-
+        // Ищем объявление через поиск с категорией
+        System.out.println("Searching for ad to edit: " + currentAd.getTitle() + " in category: " + currentAd.getCategory());
+        mainPage.searchAd(currentAd.getTitle(), currentAd.getCategory());
+        sleep(500);
         // Кликаем на объявление
-        System.out.println("Opening ad for edit: " + currentAd.getTitle());
         mainPage.clickOnAdByTitle(currentAd.getTitle());
         sleep(1000);
     }
@@ -161,29 +162,28 @@ public class AdSteps {
 
     @Тогда("объявление отображается с обновленным заголовком {string}")
     public void verifyUpdatedTitle(String expectedTitle) {
-        mainPage.goToLastPage();
+        // Ищем обновленное объявление через поиск с категорией
+        mainPage.searchAd(expectedTitle, currentAd.getCategory());
         assertTrue(mainPage.isAdPresent(expectedTitle),
                 String.format("Объявление с заголовком '%s' не найдено", expectedTitle));
     }
 
     @Тогда("цена объявления обновлена на {int}")
     public void verifyUpdatedPrice(int expectedPrice) {
-        // Ищем карточку по заголовку в div.about > h2.h2
+        // Ищем заголовок и получаем текст всей карточки
         SelenideElement titleElement = $x("//div[@class='about']/h2[@class='h2' and contains(text(),'" + currentAd.getTitle() + "')]");
 
         if (!titleElement.exists()) {
-            // Запасной вариант - ищем просто h2 с текстом
             titleElement = $x("//h2[@class='h2' and contains(text(),'" + currentAd.getTitle() + "')]");
         }
 
-        // От заголовка поднимаемся до карточки (card) и ищем цену
-        SelenideElement cardElement = titleElement.parent().parent().parent(); // about -> description -> card
+        // От заголовка поднимаемся до карточки и ищем цену
+        SelenideElement cardElement = titleElement.parent().parent().parent();
         SelenideElement priceElement = cardElement.$("div.price h2.h2");
 
         String priceText = priceElement.getText();
         System.out.println("Price text: " + priceText);
 
-        // Убираем пробелы и ₽ для сравнения
         String cleanPrice = priceText.replace(" ", "").replace("₽", "").replace(" ", "");
         System.out.println("Clean price: " + cleanPrice);
 
@@ -193,14 +193,13 @@ public class AdSteps {
 
     @Когда("пользователь удаляет свое объявление")
     public void deleteAd() {
-        // Идем на последнюю страницу
-        mainPage.goToLastPage();
-
-        // Открываем объявление
-        System.out.println("Clicking on ad: " + currentAd.getTitle());
+        // Ищем объявление через поиск с категорией
+        System.out.println("Searching for ad to delete: " + currentAd.getTitle() + " in category: " + currentAd.getCategory());
+        mainPage.searchAd(currentAd.getTitle(), currentAd.getCategory());
+        sleep(500);
+        // Кликаем на объявление
         mainPage.clickOnAdByTitle(currentAd.getTitle());
         sleep(1000);
-
         // Нажимаем "Удалить"
         editAdPage.clickDelete();
         editAdPage.confirmDelete();
@@ -209,8 +208,9 @@ public class AdSteps {
     @Тогда("объявление больше не отображается в списке")
     public void verifyAdRemoved() {
         sleep(2000);
-        refresh();
-        mainPage.goToLastPage();
+        // Ищем объявление через поиск с категорией
+        mainPage.searchAd(currentAd.getTitle(), currentAd.getCategory());
+        // Проверяем что объявление не найдено
         assertFalse(mainPage.isAdPresent(currentAd.getTitle()),
                 String.format("Объявление '%s' все еще отображается", currentAd.getTitle()));
     }

@@ -31,7 +31,8 @@ public class TestDataGenerator {
     public static String generateAdTitle() {
         String[] prefixes = {"Новый", "Б/у", "Отличный", "Редкий"};
         String prefix = prefixes[faker.random().nextInt(prefixes.length)];
-        return prefix + " " + faker.commerce().productName();
+        String timestamp = String.valueOf(System.currentTimeMillis()).substring(7);
+        return prefix + " " + faker.commerce().productName() + " " + timestamp;
     }
 
     public static String generateAdDescription() {
